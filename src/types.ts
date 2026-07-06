@@ -58,3 +58,10 @@ export interface AppSettings {
   scriptUrl: string;
   driveFolderUrl: string;
 }
+
+export interface SyncStatus {
+  synced: boolean;
+  lastCheck: string;
+  message: string;
+  type: 'pull' | 'push' | 'unknown';
+}

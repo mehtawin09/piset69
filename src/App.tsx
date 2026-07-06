@@ -20,7 +20,7 @@ import {
   BookOpen
 } from "lucide-react";
 
-import { Document, LinkItem, ViewerConfig, AppSettings, ActivityLog, User } from "./types";
+import { Document, LinkItem, ViewerConfig, AppSettings, ActivityLog, User, SyncStatus } from "./types";
 import Header from "./components/Header";
 import StatsDashboard from "./components/StatsDashboard";
 import DocumentViewer from "./components/DocumentViewer";
@@ -62,6 +62,7 @@ export default function App() {
     users: 15
   });
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   
   // Auth & Mode states
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
@@ -108,6 +109,9 @@ export default function App() {
         setSettings(data.settings || settings);
         setStats(data.stats || stats);
         setActivityLogs(data.activityLogs || []);
+        if (data.syncStatus) {
+          setSyncStatus(data.syncStatus);
+        }
         
         // Auto-select first document if available
         if (data.documents && data.documents.length > 0 && !activeDoc) {
@@ -561,6 +565,7 @@ export default function App() {
               onClose={() => setIsShowingAdminDashboard(false)}
               isDarkMode={isDarkMode}
               onRefresh={fetchAppData}
+              syncStatus={syncStatus}
             />
           )}
         </AnimatePresence>

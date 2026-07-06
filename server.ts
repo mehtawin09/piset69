@@ -163,9 +163,22 @@ function saveDB() {
 }
 
 // Background pusher to Google Sheets Apps Script
+let lastSyncStatus = {
+  synced: false,
+  lastCheck: new Date().toISOString(),
+  message: "ยังไม่มีการเชื่อมต่อหรือซิงค์ข้อมูลกับ Google Sheets",
+  type: "unknown" as "pull" | "push" | "unknown"
+};
+
 async function syncPushToGoogle() {
   const url = dbState.settings?.scriptUrl;
   if (!url || !url.startsWith("http")) {
+    lastSyncStatus = {
+      synced: false,
+      lastCheck: new Date().toISOString(),
+      message: "ยังไม่ได้ตั้งค่า Google Apps Script Web App URL",
+      type: "push"
+    };
     return;
   }
   try {
@@ -186,11 +199,38 @@ async function syncPushToGoogle() {
       body: JSON.stringify(payload)
     }).then(res => {
       console.log(`Push sync to Google Sheets finished. Status: ${res.status}`);
+      if (res.ok) {
+        lastSyncStatus = {
+          synced: true,
+          lastCheck: new Date().toISOString(),
+          message: "ซิงค์อัปโหลดข้อมูล (Push) ขึ้น Google Sheets สำเร็จเรียบร้อย",
+          type: "push"
+        };
+      } else {
+        lastSyncStatus = {
+          synced: false,
+          lastCheck: new Date().toISOString(),
+          message: `การซิงค์อัปโหลดล้มเหลว (HTTP ${res.status})`,
+          type: "push"
+        };
+      }
     }).catch(err => {
       console.warn("Background push sync warning:", err.message);
+      lastSyncStatus = {
+        synced: false,
+        lastCheck: new Date().toISOString(),
+        message: `ข้อผิดพลาดในการซิงค์อัปโหลด: ${err.message}`,
+        type: "push"
+      };
     });
   } catch (err: any) {
     console.error("Error in syncPushToGoogle setup:", err.message);
+    lastSyncStatus = {
+      synced: false,
+      lastCheck: new Date().toISOString(),
+      message: `ข้อผิดพลาดร้ายแรงในการซิงค์อัปโหลด: ${err.message}`,
+      type: "push"
+    };
   }
 }
 
@@ -199,6 +239,12 @@ async function syncPullFromGoogle() {
   const url = dbState.settings?.scriptUrl;
   if (!url || !url.startsWith("http")) {
     console.log("No valid Google Apps Script URL specified yet for automatic pull sync.");
+    lastSyncStatus = {
+      synced: false,
+      lastCheck: new Date().toISOString(),
+      message: "ยังไม่ได้ตั้งค่า Google Apps Script Web App URL",
+      type: "pull"
+    };
     return false;
   }
   try {
@@ -223,15 +269,39 @@ async function syncPullFromGoogle() {
         if (data.stats) dbState.stats = { ...dbState.stats, ...data.stats };
         
         fs.writeFileSync(DB_FILE, JSON.stringify(dbState, null, 2), "utf-8");
+        lastSyncStatus = {
+          synced: true,
+          lastCheck: new Date().toISOString(),
+          message: "เชื่อมต่อและดึงข้อมูลอัปเดตล่าสุด (Pull) จาก Google Sheets สำเร็จ",
+          type: "pull"
+        };
         return true;
       } else {
         console.warn("Google Sheets returned response but documents/links arrays were not found or formatted differently.");
+        lastSyncStatus = {
+          synced: false,
+          lastCheck: new Date().toISOString(),
+          message: "ข้อมูลที่ดึงมาจาก Google Sheets ไม่ตรงตามรูปแบบที่กำหนด",
+          type: "pull"
+        };
       }
     } else {
       console.warn(`Failed to connect to Google Sheets Web App. HTTP Status: ${response.status}`);
+      lastSyncStatus = {
+        synced: false,
+        lastCheck: new Date().toISOString(),
+        message: `เชื่อมต่อกับ Google Sheets ไม่สำเร็จ (HTTP ${response.status})`,
+        type: "pull"
+      };
     }
   } catch (err: any) {
     console.warn("Could not pull state from Google Sheets (either not published or offline):", err.message);
+    lastSyncStatus = {
+      synced: false,
+      lastCheck: new Date().toISOString(),
+      message: `ไม่สามารถเชื่อมต่อ Google Sheets ได้: ${err.message}`,
+      type: "pull"
+    };
   }
   return false;
 }
@@ -275,7 +345,14 @@ function logActivity(user: string, action: string) {
 // API Routes
 // 1. Fetch entire App Data (includes stats, settings, docs, links, etc.)
 app.get("/api/data", (req, res) => {
-  res.json(dbState);
+  res.json({
+    ...dbState,
+    syncStatus: lastSyncStatus
+  });
+});
+
+app.get("/api/sync/status", (req, res) => {
+  res.json(lastSyncStatus);
 });
 
 // 2. Increment view count

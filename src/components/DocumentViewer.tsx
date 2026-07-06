@@ -18,7 +18,8 @@ import {
   Play, 
   Search,
   Eye,
-  BookmarkCheck
+  BookmarkCheck,
+  Chrome
 } from "lucide-react";
 import { Document, ViewerConfig } from "../types";
 
@@ -399,40 +400,53 @@ export default function DocumentViewer({
 
             {/* Custom Interactive Toolbar for active doc */}
             {activeDoc && (
-              <div className="flex items-center gap-1 bg-gray-50 dark:bg-gray-900/50 p-1 rounded-xl">
-                {activeDoc.file_type === "pdf" && (
-                  <>
-                    <button onClick={handleZoomOut} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400" title="ซูมออก">
-                      <ZoomOut className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="text-[10px] font-bold px-1 text-gray-500">{zoom}%</span>
-                    <button onClick={handleZoomIn} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400" title="ซูมเข้า">
-                      <ZoomIn className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={handleZoomReset} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400" title="ซูมเริ่มต้น">
-                      <RotateCcw className="w-3.5 h-3.5" />
-                    </button>
-                    <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-800 mx-1"></div>
-                    <button onClick={handlePrint} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400" title="สั่งพิมพ์ด่วน">
-                      <Printer className="w-3.5 h-3.5" />
-                    </button>
-                  </>
-                )}
-                
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
                 <a 
                   href={activeDoc.file_url} 
-                  download 
-                  target="_blank"
+                  target="_blank" 
                   referrerPolicy="no-referrer"
-                  className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400" 
-                  title="ดาวน์โหลดเอกสารลงเครื่อง"
+                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-[#FF8A80] to-yellow-500 hover:opacity-95 text-white text-[11px] font-extrabold transition-all duration-200 flex items-center gap-1.5 shadow-sm font-prompt"
+                  title="เปิดแสดงผลโดยตรงผ่านเบราว์เซอร์ Google Chrome ในแท็บใหม่"
                 >
-                  <Download className="w-3.5 h-3.5" />
+                  <Chrome className="w-4 h-4" />
+                  <span>เปิดด้วย Google Chrome 🌐</span>
                 </a>
 
-                <button onClick={toggleFullscreen} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400" title="ขยายเต็มหน้าจอ">
-                  {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-                </button>
+                <div className="flex items-center gap-1 bg-gray-50 dark:bg-gray-900/50 p-1 rounded-xl">
+                  {activeDoc.file_type === "pdf" && (
+                    <>
+                      <button onClick={handleZoomOut} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400" title="ซูมออก">
+                        <ZoomOut className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-[10px] font-bold px-1 text-gray-500">{zoom}%</span>
+                      <button onClick={handleZoomIn} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400" title="ซูมเข้า">
+                        <ZoomIn className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={handleZoomReset} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400" title="ซูมเริ่มต้น">
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+                      <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-800 mx-1"></div>
+                      <button onClick={handlePrint} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400" title="สั่งพิมพ์ด่วน">
+                        <Printer className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+                  
+                  <a 
+                    href={activeDoc.file_url} 
+                    download 
+                    target="_blank"
+                    referrerPolicy="no-referrer"
+                    className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400" 
+                    title="ดาวน์โหลดเอกสารลงเครื่อง"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </a>
+
+                  <button onClick={toggleFullscreen} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400" title="ขยายเต็มหน้าจอ">
+                    {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -501,6 +515,12 @@ export default function DocumentViewer({
               </div>
             )}
           </div>
+
+          {activeDoc && (
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 text-center font-sarabun mt-1">
+              💡 <span className="font-bold">แนะนำ:</span> เพื่อความเสถียรและประสิทธิภาพสูงสุดในการจัดแสดงแบบฟอร์ม แผน IEP หรือสไลด์นำเสนอ แนะนำให้ใช้งานร่วมกับบราวเซอร์ <span className="font-bold text-[#FF8A80]">Google Chrome</span> เป็นหลัก หากเอกสารโหลดไม่สมบูรณ์ สามารถคลิกที่ปุ่ม <span className="font-bold text-blue-600 dark:text-blue-400">"เปิดด้วย Google Chrome 🌐"</span> ด้านบนเพื่อแสดงผลแยกได้ทันที
+            </p>
+          )}
         </div>
         
       </div>

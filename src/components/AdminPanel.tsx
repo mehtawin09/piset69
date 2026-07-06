@@ -15,9 +15,12 @@ import {
   Activity, 
   X,
   Sparkles,
-  Info
+  Info,
+  Cloud,
+  CloudOff,
+  RefreshCw
 } from "lucide-react";
-import { Document, LinkItem, ViewerConfig, AppSettings, ActivityLog } from "../types";
+import { Document, LinkItem, ViewerConfig, AppSettings, ActivityLog, SyncStatus } from "../types";
 
 interface AdminPanelProps {
   documents: Document[];
@@ -35,6 +38,7 @@ interface AdminPanelProps {
   onClose: () => void;
   isDarkMode: boolean;
   onRefresh?: () => Promise<void>;
+  syncStatus?: SyncStatus | null;
 }
 
 export default function AdminPanel({
@@ -52,7 +56,8 @@ export default function AdminPanel({
   onUpdateConfig,
   onClose,
   isDarkMode,
-  onRefresh
+  onRefresh,
+  syncStatus
 }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<"docs" | "links" | "layout" | "sync" | "logs">("docs");
   
@@ -271,8 +276,46 @@ export default function AdminPanel({
           <div className="flex items-center gap-2">
             <Settings className="w-5 h-5 text-[#FF8A80] animate-spin" />
             <div>
-              <h2 className="text-base font-bold text-gray-900 dark:text-white font-prompt">แดชบอร์ดควบคุมผู้ดูแลระบบ</h2>
-              <p className="text-[10px] text-gray-400 font-sarabun">เพิ่ม แก้ไขข้อมูล จัดการ Layout ของเว็บบอร์ดศูนย์การเรียนรู้</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base font-bold text-gray-900 dark:text-white font-prompt">แดชบอร์ดควบคุมผู้ดูแลระบบ</h2>
+                
+                {/* Cloud Sync Status Indicator */}
+                {syncStatus ? (
+                  syncStatus.synced ? (
+                    <div 
+                      className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30 text-[10px] font-bold font-sarabun cursor-help shrink-0 shadow-sm transition-all hover:opacity-90"
+                      title={`${syncStatus.message}\nอัปเดตล่าสุด: ${new Date(syncStatus.lastCheck).toLocaleTimeString("th-TH")}`}
+                    >
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                      </span>
+                      <Cloud className="w-3 h-3" />
+                      <span>เชื่อมต่อระบบ Google Sheets แล้ว 🌐</span>
+                    </div>
+                  ) : (
+                    <div 
+                      className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50/80 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/20 text-[10px] font-bold font-sarabun cursor-help shrink-0 shadow-sm transition-all hover:opacity-90"
+                      title={`${syncStatus.message}\nระบบสลับไปใช้ฐานข้อมูล Local บนเซิร์ฟเวอร์สำรองโดยอัตโนมัติ`}
+                    >
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
+                      </span>
+                      <CloudOff className="w-3 h-3" />
+                      <span>ใช้งานฐานข้อมูลสำรอง (Local)</span>
+                    </div>
+                  )
+                ) : (
+                  <div 
+                    className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-gray-50 dark:bg-gray-850 text-gray-500 dark:text-gray-400 text-[10px] font-bold font-sarabun cursor-help shrink-0 shadow-sm"
+                    title="กำลังเชื่อมโยงข้อมูล..."
+                  >
+                    <RefreshCw className="w-3 h-3 animate-spin text-gray-400" />
+                    <span>กำลังตรวจสอบการซิงค์...</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-[10px] text-gray-400 font-sarabun mt-0.5">เพิ่ม แก้ไขข้อมูล จัดการ Layout ของเว็บบอร์ดศูนย์การเรียนรู้</p>
             </div>
           </div>
           <button
