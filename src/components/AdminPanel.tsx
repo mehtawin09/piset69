@@ -34,6 +34,7 @@ interface AdminPanelProps {
   onUpdateConfig: (config: Partial<ViewerConfig>, settings?: Partial<AppSettings>) => Promise<void>;
   onClose: () => void;
   isDarkMode: boolean;
+  onRefresh?: () => Promise<void>;
 }
 
 export default function AdminPanel({
@@ -50,7 +51,8 @@ export default function AdminPanel({
   onDeleteLink,
   onUpdateConfig,
   onClose,
-  isDarkMode
+  isDarkMode,
+  onRefresh
 }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<"docs" | "links" | "layout" | "sync" | "logs">("docs");
   
@@ -89,6 +91,50 @@ export default function AdminPanel({
   const [driveUrl, setDriveUrl] = useState(settings.driveFolderUrl);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handlePullFromGoogle = async () => {
+    if (!scriptUrl || !scriptUrl.startsWith("http")) {
+      return alert("กรุณาระบุและบันทึก Google Apps Script Web App Exec URL ก่อนดึงข้อมูล");
+    }
+    setIsSyncing(true);
+    try {
+      const response = await fetch("/api/sync/pull", { method: "POST" });
+      const result = await response.json();
+      if (result.success) {
+        alert("ดึงข้อมูลอัปเดตล่าสุดจาก Google Sheets สำเร็จเรียบร้อยแล้ว!");
+        if (onRefresh) {
+          await onRefresh();
+        }
+      } else {
+        alert("ไม่สามารถดึงข้อมูลได้สำเร็จ: " + result.message);
+      }
+    } catch (err: any) {
+      alert("เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย: " + err.message);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handlePushToGoogle = async () => {
+    if (!scriptUrl || !scriptUrl.startsWith("http")) {
+      return alert("กรุณาระบุและบันทึก Google Apps Script Web App Exec URL ก่อนดึงข้อมูล");
+    }
+    setIsSyncing(true);
+    try {
+      const response = await fetch("/api/sync/push", { method: "POST" });
+      const result = await response.json();
+      if (result.success) {
+        alert("ส่งอัปเดตและสำรองข้อมูลทั้งหมดขึ้น Google Sheets เรียบร้อยแล้ว!");
+      } else {
+        alert("ไม่สามารถอัปโหลดข้อมูลได้: " + result.message);
+      }
+    } catch (err: any) {
+      alert("เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย: " + err.message);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Document Submit
   const handleDocSubmit = async (e: React.FormEvent) => {
@@ -772,6 +818,33 @@ export default function AdminPanel({
                         className="w-full text-xs p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 font-mono"
                       />
                     </div>
+                  </div>
+
+                  <div className="mt-4 p-4 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/20 flex flex-col gap-3">
+                    <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">ฟังก์ชันควบคุมและการทำงานร่วมกันกับ Cloud</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={handlePullFromGoogle}
+                        disabled={isSyncing}
+                        className="px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        <CloudLightning className="w-4 h-4" />
+                        {isSyncing ? "กำลังเชื่อมต่อ..." : "ดึงข้อมูลจาก Google Sheets (Pull Latest)"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handlePushToGoogle}
+                        disabled={isSyncing}
+                        className="px-4 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        <Database className="w-4 h-4" />
+                        {isSyncing ? "กำลังส่งข้อมูล..." : "ส่ง/สำรองข้อมูลไปยัง Google Sheets (Push Local)"}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-gray-400 text-center leading-normal mt-1">
+                      * หมายเหตุ: ในกรณีทั่วไป ระบบจะทำการเชื่อมโยงข้อมูลและส่งข้อมูลอัปเดตไปบันทึกที่ Google Sheets ให้อัตโนมัติในทุกๆ การเปลี่ยนแปลงข้อมูลของท่าน
+                    </p>
                   </div>
 
                   <div className="flex justify-between items-center gap-2 mt-4 border-t pt-4">

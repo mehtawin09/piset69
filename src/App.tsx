@@ -560,6 +560,7 @@ export default function App() {
               onUpdateConfig={handleUpdateConfig}
               onClose={() => setIsShowingAdminDashboard(false)}
               isDarkMode={isDarkMode}
+              onRefresh={fetchAppData}
             />
           )}
         </AnimatePresence>

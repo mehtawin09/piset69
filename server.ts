@@ -155,9 +155,85 @@ try {
 function saveDB() {
   try {
     fs.writeFileSync(DB_FILE, JSON.stringify(dbState, null, 2), "utf-8");
+    // Automatically push state to Google Sheets Apps Script in background
+    syncPushToGoogle();
   } catch (error) {
     console.error("Error writing database state to disk:", error);
   }
+}
+
+// Background pusher to Google Sheets Apps Script
+async function syncPushToGoogle() {
+  const url = dbState.settings?.scriptUrl;
+  if (!url || !url.startsWith("http")) {
+    return;
+  }
+  try {
+    console.log("Automatic Sync: pushing current local database state to Google Sheets...", url);
+    const payload = {
+      action: "sync",
+      documents: dbState.documents,
+      links: dbState.links,
+      stats: dbState.stats,
+      settings: dbState.settings,
+      viewerConfig: dbState.viewerConfig
+    };
+    
+    // Perform background fetch
+    fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(res => {
+      console.log(`Push sync to Google Sheets finished. Status: ${res.status}`);
+    }).catch(err => {
+      console.warn("Background push sync warning:", err.message);
+    });
+  } catch (err: any) {
+    console.error("Error in syncPushToGoogle setup:", err.message);
+  }
+}
+
+// Background puller from Google Sheets Apps Script
+async function syncPullFromGoogle() {
+  const url = dbState.settings?.scriptUrl;
+  if (!url || !url.startsWith("http")) {
+    console.log("No valid Google Apps Script URL specified yet for automatic pull sync.");
+    return false;
+  }
+  try {
+    console.log("Automatic Sync: pulling state from Google Sheets...", url);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    
+    const response = await fetch(url, {
+      method: "GET",
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data && (Array.isArray(data.documents) || Array.isArray(data.links))) {
+        console.log("Successfully connected and loaded database state from Google Sheets Web App!");
+        if (Array.isArray(data.documents)) dbState.documents = data.documents;
+        if (Array.isArray(data.links)) dbState.links = data.links;
+        if (data.settings) dbState.settings = { ...dbState.settings, ...data.settings };
+        if (data.viewerConfig) dbState.viewerConfig = { ...dbState.viewerConfig, ...data.viewerConfig };
+        if (data.stats) dbState.stats = { ...dbState.stats, ...data.stats };
+        
+        fs.writeFileSync(DB_FILE, JSON.stringify(dbState, null, 2), "utf-8");
+        return true;
+      } else {
+        console.warn("Google Sheets returned response but documents/links arrays were not found or formatted differently.");
+      }
+    } else {
+      console.warn(`Failed to connect to Google Sheets Web App. HTTP Status: ${response.status}`);
+    }
+  } catch (err: any) {
+    console.warn("Could not pull state from Google Sheets (either not published or offline):", err.message);
+  }
+  return false;
 }
 
 // Lazy initialization of Gemini API Client
@@ -478,8 +554,56 @@ ${JSON.stringify(context, null, 2)}
   }
 });
 
+// 9. Manual Sync endpoints for Google Sheets
+app.post("/api/sync/pull", async (req, res) => {
+  const success = await syncPullFromGoogle();
+  if (success) {
+    logActivity("System", "เชื่อมต่อและดึงข้อมูลอัปเดตจาก Google Sheets สำเร็จ");
+    res.json({ success: true, message: "อัปเดตข้อมูลจาก Google Sheets สำเร็จ", data: dbState });
+  } else {
+    res.status(500).json({ success: false, message: "ไม่สามารถดึงข้อมูลได้สำเร็จ กรุณาตรวจสอบสิทธิ์และการเชื่อมต่อเครือข่าย" });
+  }
+});
+
+app.post("/api/sync/push", async (req, res) => {
+  const url = dbState.settings?.scriptUrl;
+  if (!url || !url.startsWith("http")) {
+    return res.status(400).json({ success: false, message: "กรุณากำหนด Google Appscript Web App URL ในหน้าตั้งค่าก่อนซิงค์" });
+  }
+  try {
+    const payload = {
+      action: "sync",
+      documents: dbState.documents,
+      links: dbState.links,
+      stats: dbState.stats,
+      settings: dbState.settings,
+      viewerConfig: dbState.viewerConfig
+    };
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (response.ok) {
+      logActivity("Admin", "สั่งอัปโหลดแบ็คอัพข้อมูลด้วยตนเองขึ้น Google Sheets เรียบร้อย");
+      res.json({ success: true, message: "ส่งข้อมูลขึ้น Google Sheets สำเร็จ" });
+    } else {
+      res.status(500).json({ success: false, message: `ส่งข้อมูลล้มเหลว สถานะ: ${response.status}` });
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการเชื่อมโยงเครือข่าย", error: err.message });
+  }
+});
+
 // Start server block
 async function startServer() {
+  // Trigger automatic pull from Google Sheets upon server startup
+  try {
+    await syncPullFromGoogle();
+  } catch (e: any) {
+    console.warn("Startup automatic sync pull did not succeed:", e.message);
+  }
+
   // If in production mode, serve the static builds
   if (process.env.NODE_ENV === "production") {
     const distPath = path.join(process.cwd(), "dist");
